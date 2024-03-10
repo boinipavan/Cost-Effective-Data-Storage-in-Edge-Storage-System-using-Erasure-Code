@@ -1,21 +1,28 @@
 import java.util.Scanner;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.util.Arrays;
+import java.util.Base64;
 
 public class MatrixCreation {
-    static int availrows;
-    public static void main(String[] args) 
+    static int availrows,n;
+    static double ceilSqrt;
+    public static void main(String[] args) throws Exception
     {
         
         Scanner scanner = new Scanner(System.in);
 
         // Step 1: Take string as input
-        System.out.print("Enter a string: ");
+        System.out.print("Enter a string(Data): ");
         String inputString = scanner.nextLine();
 
         // Step 2: Find ceil value of square root of length of string
-        double ceilSqrt = Math.ceil(Math.sqrt(inputString.length()));
+        ceilSqrt = Math.ceil(Math.sqrt(inputString.length()));
 
         // Step 3: Create n*n matrix (double data type) where n=ceil value of square root of length of string
-        int n = (int) ceilSqrt;
+         n = (int)ceilSqrt;
         double[][] matrix = new double[n][n];
 
         // Step 4: Assign relevant ascii values of string characters sequentially
@@ -45,7 +52,7 @@ public class MatrixCreation {
         }
 
         // Output the matrix
-        System.out.println("Generated Matrix:");
+        System.out.println("Generated matrix:");
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 System.out.print(matrix[i][j] + " ");
@@ -72,15 +79,56 @@ public class MatrixCreation {
            }
             System.out.println();
         }
+        //perform aes des encryption
+        SecretKeySpec aesKeySpec = generateAESKey();
+        SecretKeySpec desKeySpec = generateDESKey();
+        String[] encryptedRows = new String[codedmatrix.length];
+        for(int i=0;i<codedmatrix.length;i++)
+        {
+                  StringBuilder sb1 = new StringBuilder();
+                  for (double row : codedmatrix[i]) {
+                      
+                          char c = (char) row;
+                          sb1.append(c);
+                      }
+                  String s=sb1.toString();
+                  String encryptedWithAES = encryptWithAES(s, aesKeySpec);
+                  encryptedRows[i] = encryptWithDES(encryptedWithAES, desKeySpec);
+        }
+        
+        
         //take input to know no of available rows
-        System.out.print("enter avail rows:");
-         availrows=scanner.nextInt();
-         double[][] availableErasureMatrix=new double[availrows][];
-        double[][] availableCodedMatrix = retrieveAvailableRows(codedmatrix,erasurematrix,availableErasureMatrix);
+        	System.out.print("enter number of available servers(rows):");
+        	availrows=scanner.nextInt();
+         if(availrows<n)
+         {
+        	 System.out.print("Number of servers failed is greater than parity servers.Hence,we cant recover data.sorry..");
+        	 System.exit(0);
+         }
+         double[][] availableErasureMatrix=new double[matrix.length][];
+     	
+        
+         String[] availableCodedMatrix = retrieveAvailableRows(encryptedRows,erasurematrix,availableErasureMatrix);//encrypted
+        
+        
+        //perform des aes decryption
+        
+            double[][] availableEncodedMatrix=new double[matrix.length][matrix.length];
+        	for(int x=0;x<availableCodedMatrix.length;x++)
+        	{
+        		String s=availableCodedMatrix[x];
+        		String decryptedWithDES = decryptWithDES(s, desKeySpec);
+        		String str = decryptWithAES(decryptedWithDES, aesKeySpec);
+            for (int i = 0; i < str.length(); i++) {
+                char c = str.charAt(i);
+             
+                availableEncodedMatrix[x][i] = (double) (int) c; // Store the ASCII value as double
+            }
+        	}
 
         // Output the available coded matrix
         System.out.println("Available Rows coded Matrix:");
-        for (double[] row : availableCodedMatrix) {
+        for (double[] row : availableEncodedMatrix) {
             for (double element : row) {
                 System.out.print(element + " ");
             }
@@ -97,23 +145,27 @@ public class MatrixCreation {
         //last matrix inverse operations
          // Find determinant
         double det = determinant(availableErasureMatrix);
-        System.out.println("Determinant: " + det);
+        if(det==0)
+        {
+        System.out.println("Determinant is zero i.e;matrix is scalar please consider differrent parity values in erasure matrix");
+        }
 
         // Find adjoint
         double[][] adj = adjoint(availableErasureMatrix);
 
         // Output adjoint
+        /*
         System.out.println("Adjoint:");
         for (int i = 0; i < adj.length; i++) {
             for (int j = 0; j < adj[i].length; j++) {
                 System.out.print(adj[i][j] + " ");
             }
             System.out.println();
-        }
-         double[][] result = multiplyMatrices(adj, availableCodedMatrix);
+        }*/
+         double[][] result = multiplyMatrices(adj, availableEncodedMatrix);
 
         // Output result
-        System.out.println("Matrix Multiplication Result or actual matrix:");
+        System.out.println("Matrix Multiplication Result or actual matrix after data re-construction");
         for (int i = 0; i < result.length; i++) {
             for (int j = 0; j < result[0].length; j++) {
                 System.out.print(result[i][j]/det + " ");
@@ -121,27 +173,32 @@ public class MatrixCreation {
             System.out.println();
         }
            // Convert the integers to relevant strings based on ASCII values
-        System.out.println("Strings based on ASCII values:");
+            for (int i = 0; i < result.length; i++) {
+            for (int j = 0; j < result[0].length; j++) {
+                result[i][j]=result[i][j]/det;
+            }
+            }
+        System.out.print("Data Stored is:");
         int k=0;
         for (int i = 0; i < result.length && k<inputString.length(); i++) {
             for (int j = 0; j <result[0].length && k<inputString.length(); j++) {
-                System.out.print((char) result[i][j]/det + " ");
+                System.out.print((char) result[i][j]);
                 k++;
             }
-            System.out.println(); // Move to the next line after each row
+            
         }
     }//static block 
     
        
     
-      public static double[][] retrieveAvailableRows(double[][] originalMatrix,double[][] erasureMatrix,double[][] availableErasureMatrix) {
+      public static String[] retrieveAvailableRows(String[] originalMatrix,double[][] erasureMatrix,double[][] availableErasureMatrix) {
         Scanner scanner = new Scanner(System.in);
         
         //int numRows = originalMatrix.length;
-        double[][] availableMatrix = new double[availrows][];
+        String[] availableMatrix = new String[n];
         int l=0;
-        for (int i = 0; i <originalMatrix.length; i++) {
-            System.out.print("Is row " + i + " available? (1 for available, 0 for not available): ");
+        for (int i = 0; i <originalMatrix.length && l<availableErasureMatrix.length; i++) {
+            System.out.print("Is server(row) " + i + " available? (1 for available, 0 for not available): ");
             int choice = scanner.nextInt();
             if (choice == 1) {
                 availableMatrix[l] = originalMatrix[i];
@@ -183,9 +240,9 @@ public class MatrixCreation {
          Scanner scanner = new Scanner(System.in);
 
         // Input values for m and n
-        System.out.print("Enter value for m (number of identity matrix rows): ");
-        int m = scanner.nextInt();
-        System.out.print("Enter value for n (number of parity matrix rows): ");
+        //System.out.print("Enter value for m (number of identity matrix rows): ");
+        int m = (int)ceilSqrt;
+        System.out.print("Enter number of parity servers(rows): ");
         int n = scanner.nextInt();
 
         // Create the matrix of size m + n rows
@@ -257,6 +314,49 @@ public class MatrixCreation {
             }
         }
         return adjoint;
+    }
+    public static SecretKeySpec generateAESKey() throws Exception {
+        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+        keyGen.init(128); // AES key length can be 128, 192, or 256 bits
+        SecretKey secretKey = keyGen.generateKey();
+        return new SecretKeySpec(secretKey.getEncoded(), "AES");
+    }
+
+    public static SecretKeySpec generateDESKey() throws Exception {
+        KeyGenerator keyGen = KeyGenerator.getInstance("DES");
+        keyGen.init(56); // DES key length is 56 bits
+        SecretKey secretKey = keyGen.generateKey();
+        return new SecretKeySpec(secretKey.getEncoded(), "DES");
+    }
+
+    public static String encryptWithAES(String message, SecretKeySpec key) throws Exception {
+        Cipher aesCipher = Cipher.getInstance("AES");
+        aesCipher.init(Cipher.ENCRYPT_MODE, key);
+        byte[] encryptedBytes = aesCipher.doFinal(message.getBytes());
+        return Base64.getEncoder().encodeToString(encryptedBytes);
+    }
+
+    public static String encryptWithDES(String message, SecretKeySpec key) throws Exception {
+        Cipher desCipher = Cipher.getInstance("DES");
+        desCipher.init(Cipher.ENCRYPT_MODE, key);
+        byte[] encryptedBytes = desCipher.doFinal(message.getBytes());
+        return Base64.getEncoder().encodeToString(encryptedBytes);
+    }
+
+    public static String decryptWithDES(String encryptedText, SecretKeySpec key) throws Exception {
+        byte[] encryptedBytes = Base64.getDecoder().decode(encryptedText);
+        Cipher desCipher = Cipher.getInstance("DES");
+        desCipher.init(Cipher.DECRYPT_MODE, key);
+        byte[] decryptedBytes = desCipher.doFinal(encryptedBytes);
+        return new String(decryptedBytes);
+    }
+
+    public static String decryptWithAES(String encryptedText, SecretKeySpec key) throws Exception {
+        byte[] encryptedBytes = Base64.getDecoder().decode(encryptedText);
+        Cipher aesCipher = Cipher.getInstance("AES");
+        aesCipher.init(Cipher.DECRYPT_MODE, key);
+        byte[] decryptedBytes = aesCipher.doFinal(encryptedBytes);
+        return new String(decryptedBytes);
     }
         
   
