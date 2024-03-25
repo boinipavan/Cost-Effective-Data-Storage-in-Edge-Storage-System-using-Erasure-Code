@@ -1,0 +1,620 @@
+package aes;
+
+
+import java.util.Scanner;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+
+public class ErasureCoding {
+    static int availrows,n;
+    static boolean[] booleanArray= {false,false,false,false,false,false};
+    static double ceilSqrt;
+    static int[] p= {4, 2, 8, 6, 9, 1, 3, 7, 5, 2, 6, 4, 7, 9, 3, 1, 8, 5, 2, 6,
+    		9, 7, 3, 5, 8, 4, 6, 2, 1, 9, 5, 8, 6, 1, 4, 2, 7, 9, 3, 5,
+    		3, 1, 9, 7, 2, 6, 4, 8, 5, 3, 7, 8, 1, 2, 5, 4, 6, 9, 3, 2,
+    		6, 4, 9, 5, 3, 7, 8, 1, 2, 5, 4, 6, 9, 3, 2, 6, 4, 9, 5, 3,
+    		7, 8, 1, 2, 5, 4, 6, 9, 3, 2, 6, 4, 9, 5, 3, 7, 8, 1, 2, 5,
+    		4, 6, 9, 3, 2, 6, 4, 9, 5, 3, 7, 8, 1, 2, 5, 4, 6, 9, 3, 2,
+    		6, 4, 9, 5, 3, 7, 8, 1, 2, 5, 4, 6, 9, 3, 2, 6, 4, 9, 5, 3,
+    		7, 8, 1, 2, 5, 4, 6, 9, 3, 2, 6, 4, 9, 5, 3, 7, 8, 1, 2, 5,
+    		4, 6, 9, 3, 2, 6, 4, 9, 5, 3, 7, 8, 1, 2, 5, 4, 6, 9, 3, 2,
+    		6, 4, 9, 5, 3, 7, 8, 1, 2, 5, 4, 6, 9, 3, 2, 6, 4, 9, 5, 3,
+    		7, 8, 1, 2, 5, 4, 6, 9, 3, 2, 6, 4, 9, 5, 3, 7, 8, 1, 2, 5,
+    		4, 6, 9, 3, 2, 6, 4, 9, 5, 3, 7, 8, 1, 2, 5, 4, 6, 9, 3, 2,
+    		6, 4, 9, 5, 3, 7, 8, 1, 2, 5, 4, 6, 9, 3, 2, 6, 4, 9, 5, 3
+};
+    //config
+    
+
+    public static void main(String[] args) throws Exception
+    {	
+    	
+    	
+    	 List<Integer> l=new ArrayList<>();
+        
+       Scanner scanner=new Scanner(System.in);
+       
+        // Step 1: Take string as input
+        System.out.print("Enter a string(Data): ");
+        String inputString = scanner.nextLine();
+
+        // Step 2: Find ceil value of square root of length of string
+        ceilSqrt = Math.ceil(Math.sqrt(inputString.length()));
+
+        // Step 3: Create n*n matrix (double data type) where n=ceil value of square root of length of string
+         n = (int)ceilSqrt;
+        double[][] matrix = new double[n][n];
+        //erasure remaining
+        double[][] erasurematrixremaining = new double[n][n];
+
+        // Step 4: Assign relevant ascii values of string characters sequentially
+        int index = 0;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (index < inputString.length()) {
+                    matrix[i][j] = inputString.charAt(index);
+                    index++;
+                } else {
+                    break;
+                }
+            }
+            if (index >= inputString.length()) {
+                break;
+            }
+        }
+
+        // Step 5: If some part of matrix is unassigned then consider 'a' as parity fill remaining unassigned places with relevant ascii values
+        int z=0;
+        while (index < n * n) {
+            int row = index / n;
+            int col = index % n;
+            matrix[row][col] =p[z];
+            z++;
+            index++;
+        
+        }
+
+        // Output the matrix
+        System.out.println("Generated matrix:");
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                System.out.print(matrix[i][j] + " ");
+            }
+            System.out.println();
+        }
+        //calling generateerasurematrix 
+        double[][] erasurematrix=generateErasureMatrix();
+         System.out.println("Generated erasureMatrix:");
+        for (int i = 0; i < erasurematrix.length; i++) {
+            for (int j = 0; j <erasurematrix[0].length; j++) {
+                System.out.print(erasurematrix[i][j] + " ");
+            }
+            System.out.println();
+        }
+    
+        double[][] codedmatrix = multiplyMatrices(erasurematrix, matrix);
+
+        // Print the codedmatrixresult
+        System.out.println("Resultant coded Matrix:");
+        for (int i = 0; i < codedmatrix.length; i++) {
+           for (int j = 0; j < codedmatrix[0].length; j++) {
+               System.out.print(codedmatrix[i][j] + " ");
+           }
+            System.out.println();
+        }
+        //file storage
+        double[][] mat=new double[matrix.length][matrix[0].length];
+        int[] lengths = genDivideMatrix(matrix.length);
+
+        double[][] variable1 = null, variable2 = null, variable3 = null,
+                variable4 = null, variable5 = null, variable6 = null;
+
+        int start = 0;
+        int end;
+        int ind = 0;
+        System.out.println("lengths");
+        for(int i=0;i<lengths.length;i++)
+        {
+        	System.out.println(lengths[i]);
+        }
+        for (int i = 0; i < lengths.length; i++) {
+            end = start + lengths[i];
+            switch (ind) {
+                case 0:
+                    variable1 = new double[lengths[i]][matrix[0].length];
+                    copyRows(codedmatrix, variable1, start, end);
+                    break;
+                case 1:
+                    variable2 = new double[lengths[i]][matrix[0].length];
+                    copyRows(codedmatrix, variable2, start, end);
+                    break;
+                case 2:
+                    variable3 = new double[lengths[i]][matrix[0].length];
+                    copyRows(codedmatrix, variable3, start, end);
+                    break;
+                case 3:
+                    variable4 = new double[lengths[i]][matrix[0].length];
+                    copyRows(codedmatrix, variable4, start, end);
+                    break;
+                case 4:
+                    variable5 = new double[lengths[i]][matrix[0].length];
+                    copyRows(codedmatrix, variable5, start, end);
+                    break;
+                case 5:
+                    variable6 = new double[lengths[i]][matrix[0].length];
+                    copyRows(codedmatrix, variable6, start, end);
+                    break;
+            }
+            start = end;
+            ind++;
+        }
+
+        String str1 = matrixToString(variable1);
+        String str2 = matrixToString(variable2);
+        String str3 = matrixToString(variable3);
+        String str4 = matrixToString(variable4);
+        String str5 = matrixToString(variable5);
+        String str6 = matrixToString(variable6);
+        System.out.println("str1"+"  "+str1);
+        System.out.println("str2"+"  "+str2);
+        System.out.println("str3"+"  "+str3);
+        System.out.println("str4"+"  "+str4);
+        System.out.println("str5"+"  "+str5);
+        System.out.println("str6"+"  "+str6);
+      // Writing to files
+        writeFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file1.txt", str1);
+        writeFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file2.txt", str2);
+        writeFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file3.txt", str3);
+        writeFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file4.txt", str4);
+        writeFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file5.txt", str5);
+        writeFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file6.txt", str6);
+
+        // Retrieving data and storing in matrices
+        System.out.print("start reading enter 1:");
+        int qa=scanner.nextInt();
+        int retrieve=1;
+        while(retrieve==1) {
+        	booleanArray[0]=false;
+        	booleanArray[1]=false;
+        	booleanArray[2]=false;
+        	booleanArray[3]=false;
+        	booleanArray[4]=false;
+        	booleanArray[5]=false;
+        String fileData1 = readFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file1.txt");
+       int erasurestart=0,erasureend=lengths[0],eras=0;
+        if(fileData1.trim().length()!=0 && eras<erasurematrixremaining.length)
+        {
+        	System.out.println("file values");
+        	System.out.println(erasurestart+"   "+ erasureend+"     "+eras);
+        	booleanArray[0]=true;
+        	for(int i=erasurestart;i<erasureend && eras<erasurematrixremaining.length;i++)
+        	{
+        		for(int j=0;j<erasurematrix[0].length && eras<erasurematrixremaining.length;j++)
+        		{
+        			erasurematrixremaining[eras][j]=erasurematrix[i][j];
+        		}
+        		eras++;
+        	}
+        }
+      
+        String fileData2 = readFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file2.txt");
+        erasurestart=erasureend;
+        erasureend+=lengths[1];
+        if(fileData2.trim().length()!=0  && eras<erasurematrixremaining.length)
+        {
+        	System.out.println("file values");
+        	System.out.println(erasurestart+"   "+ erasureend+"     "+eras);
+        	//System.out.print(fileData2.length()+"  ");
+        	booleanArray[1]=true;
+        	for(int i=erasurestart;i<erasureend && eras<erasurematrixremaining.length;i++)
+        	{
+        		for(int j=0;j<erasurematrix[0].length && eras<erasurematrixremaining.length;j++)
+        		{
+        			erasurematrixremaining[eras][j]=erasurematrix[i][j];
+        		}
+        		eras++;
+        	}
+        }
+     
+        String fileData3 = readFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file3.txt");
+        erasurestart=erasureend;
+        erasureend+=lengths[2];
+        if(fileData3.trim().length()!=0 && eras<erasurematrixremaining.length)
+        {
+        	System.out.println("file values");
+        	System.out.println(erasurestart+"   "+ erasureend+"     "+eras);
+        	//System.out.print(fileData3.length()+"  ");
+        	booleanArray[2]=true;
+        	for(int i=erasurestart;i<erasureend && eras<erasurematrixremaining.length;i++)
+        	{
+        		for(int j=0;j<erasurematrix[0].length && eras<erasurematrixremaining.length;j++)
+        		{
+        			erasurematrixremaining[eras][j]=erasurematrix[i][j];
+        		}
+        		eras++;
+        	}
+        }
+     
+        String fileData4 = readFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file4.txt");
+        erasurestart=erasureend;
+        erasureend+=lengths[3];
+        if(fileData4.trim().length()!=0 && eras<erasurematrixremaining.length)
+        {
+        	System.out.println("file values");
+        	System.out.println(erasurestart+"   "+ erasureend+"     "+eras);
+        	//System.out.print(fileData4.length()+"  ");
+        	booleanArray[3]=true;
+        	for(int i=erasurestart;i<erasureend && eras<erasurematrixremaining.length;i++)
+        	{
+        		for(int j=0;j<erasurematrix[0].length && eras<erasurematrixremaining.length;j++)
+        		{
+        			erasurematrixremaining[eras][j]=erasurematrix[i][j];
+        		}
+        		eras++;
+        	}
+        }
+       
+        String fileData5 = readFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file5.txt");
+        erasurestart=erasureend;
+        erasureend+=lengths[4];
+        if(fileData5.trim().length()!=0 && eras<erasurematrixremaining.length)
+        {
+        	System.out.println("file values");
+        	System.out.println(erasurestart+"   "+ erasureend+"     "+eras);
+        	//System.out.print(fileData5.length()+"  ");
+        	booleanArray[4]=true;
+        	for(int i=erasurestart;i<erasureend && eras<erasurematrixremaining.length;i++)
+        	{
+        		for(int j=0;j<erasurematrix[0].length && eras<erasurematrixremaining.length;j++)
+        		{
+        			erasurematrixremaining[eras][j]=erasurematrix[i][j];
+        		}
+        		eras++;
+        	}
+        }
+        String fileData6 = readFile("C:\\Users\\boini\\OneDrive\\Documents\\storagefolder\\file6.txt");
+        erasurestart=erasureend;
+        erasureend+=lengths[5];
+        if(fileData6.trim().length()!=0 && eras<erasurematrixremaining.length)
+        {
+        	System.out.println("file values");
+        	System.out.println(erasurestart+"   "+ erasureend+"     "+eras);
+        	//System.out.print(fileData6.length()+"  ");
+        	booleanArray[5]=true;
+        	for(int i=erasurestart;i<erasureend && eras<erasurematrixremaining.length;i++)
+        	{
+        		for(int j=0;j<erasurematrix[0].length && eras<erasurematrixremaining.length;j++)
+        		{
+        			erasurematrixremaining[eras][j]=erasurematrix[i][j];
+        		}
+        		eras++;
+        	}
+        }
+    	for(int i=0;i<erasurematrixremaining.length ;i++)
+    	{
+    		for(int j=0;j<erasurematrixremaining[0].length ;j++)
+    		{
+    			System.out.print(erasurematrixremaining[i][j]+"  ");
+    		}
+    		System.out.println();
+    	}
+        int countserversfailed=0;
+        for(int i=0;i<booleanArray.length;i++)
+        {
+        	if(booleanArray[i]==false)
+        	{
+        		countserversfailed++;
+        	}
+        }
+        if(countserversfailed>2)
+        {
+        	System.out.println("Sorry, number of servers failed is greater than parity servers used. We cannot recover data.");
+            //System.exit(0);
+        }
+        
+        if(booleanArray[0]) 
+        	stringToMatrix(fileData1,l);
+        if(booleanArray[1])
+        	stringToMatrix(fileData2,l);
+        if(booleanArray[2]) 
+        	stringToMatrix(fileData3,l);
+        if(booleanArray[3]) 
+        	stringToMatrix(fileData4,l);
+        if(booleanArray[4]) 
+        	stringToMatrix(fileData5,l);
+        if(booleanArray[5]) 
+        	stringToMatrix(fileData6,l);
+        
+        int  k=0;
+        
+         for(int i=0;i<mat.length;i++)
+         {
+       	  for(int j=0;j<mat[0].length;j++)
+       	  {
+       		  mat[i][j]=l.get(k);
+       		  k++;
+       	  }
+         }
+         for(int i=0;i<mat.length;i++)
+         {
+       	  for(int j=0;j<mat[0].length;j++)
+       	  {
+       		  System.out.print(mat[i][j]+" ");
+       	  }
+       	  System.out.println();
+       	  }
+       
+    System.out.print("Data Stored is:");
+    int t=0;
+    for (int i = 0; i < mat.length && k<inputString.length(); i++) {
+        for (int j = 0; j <mat[0].length && k<inputString.length(); j++) {
+            System.out.print((char) mat[i][j]);
+            k++;
+        }
+        
+    }
+        //last matrix inverse operations
+         // Find determinant
+        double det = determinant(erasurematrixremaining);
+        if(det==0)
+        {
+        System.out.println("Determinant is zero i.e;matrix is scalar please consider differrent parity values in erasure matrix");
+        }
+
+        // Find adjoint
+        double[][] adj = adjoint(erasurematrixremaining);
+
+        // Output adjoint
+        
+        System.out.println("Adjoint:");
+        for (int i = 0; i < adj.length; i++) {
+            for (int j = 0; j < adj[i].length; j++) {
+                System.out.print(adj[i][j] + " ");
+            }
+            System.out.println();
+        }
+         double[][] result = multiplyMatrices(adj, mat);
+
+        // Output result
+        System.out.println("Matrix Multiplication Result or actual matrix after data re-construction");
+        for (int i = 0; i < result.length; i++) {
+            for (int j = 0; j < result[0].length; j++) {
+                System.out.print(result[i][j]/det + " ");
+            }
+            System.out.println();
+        }
+           // Convert the integers to relevant strings based on ASCII values
+            for (int i = 0; i < result.length; i++) {
+            for (int j = 0; j < result[0].length; j++) {
+                result[i][j]=result[i][j]/det;
+            }
+            }
+        System.out.print("Data Stored is:");
+        int m=0;
+        for (int i = 0; i < result.length && m<inputString.length(); i++) {
+            for (int j = 0; j <result[0].length && m<inputString.length(); j++) {
+                System.out.print((char) result[i][j]);
+                m++;
+            }
+            
+        }
+        System.out.println("Do you want to retrieve data again enter 1 if yes, enter 0 if no:");
+        retrieve=scanner.nextInt();
+        }
+        
+    }//static block 
+    
+       
+    
+      public static String[] retrieveAvailableRows(String[] originalMatrix,double[][] erasureMatrix,double[][] availableErasureMatrix) {
+        Scanner scanner = new Scanner(System.in);
+        
+        //int numRows = originalMatrix.length;
+        String[] availableMatrix = new String[n];
+        int l=0;
+        for (int i = 0; i <originalMatrix.length && l<availableErasureMatrix.length; i++) {
+            System.out.print("Is server(row) " + i + " available? (1 for available, 0 for not available): ");
+            int choice = scanner.nextInt();
+            if (choice == 1) {
+                availableMatrix[l] = originalMatrix[i];
+                availableErasureMatrix[l]=erasureMatrix[i];
+                  l++;
+            } 
+          
+        }
+
+        return availableMatrix;
+    }
+    
+    
+     public static double[][] multiplyMatrices(double[][] matrix1, double[][] matrix2) {
+        int rows1 = matrix1.length;
+        int cols1 = matrix1[0].length;
+        int rows2 = matrix2.length;
+        int cols2 = matrix2[0].length;
+
+        if (cols1 != rows2) {
+            throw new IllegalArgumentException("Cannot multiply matrices of incompatible dimensions");
+        }
+
+        double[][] result = new double[rows1][cols2];
+
+        for (int i = 0; i < rows1; i++) {
+            for (int j = 0; j < cols2; j++) {
+                for (int k = 0; k < cols1; k++) {
+                    result[i][j] += matrix1[i][k] * matrix2[k][j];
+                }
+            }
+        }
+
+        return result;
+    }
+    //function to generate erasure matrix
+    public static double[][] generateErasureMatrix()
+    {
+        int numRows =(int)ceilSqrt ;
+		//firstMatrix.length;
+		int numParityRows = calculateNumParityRows(numRows);
+		
+		double[][] parityMatrix = new double[numRows + numParityRows][numRows];
+		
+		// Generate identity matrix
+		for (int i = 0; i < numRows; i++) {
+		    parityMatrix[i][i] = 1;
+		}
+		
+		// Fill parity rows
+		int x=0;
+		for (int i = numRows; i < numRows + numParityRows; i++) {
+		    for (int j = 0; j < numRows; j++) {
+		        parityMatrix[i][j] = p[x];
+		        x++;
+		    }
+		}
+		
+		return parityMatrix;
+
+    }
+    //matrix inverse
+       // Function to calculate the cofactor of matrix[i][j]
+    public static double[][] getCofactor(double[][] matrix, int i, int j) {
+        int n = matrix.length;
+        double[][] cofactor = new double[n - 1][n - 1];
+        int row = 0, col = 0;
+        for (int k = 0; k < n; k++) {
+            for (int l = 0; l < n; l++) {
+                if (k != i && l != j) {
+                    cofactor[row][col++] = matrix[k][l];
+                    if (col == n - 1) {
+                        col = 0;
+                        row++;
+                    }
+                }
+            }
+        }
+        return cofactor;
+    }
+
+    // Function to find the determinant of a matrix
+    public static double determinant(double[][] matrix) {
+        int n = matrix.length;
+        if (n == 1) {
+            return matrix[0][0];
+        }
+        double det = 0;
+        int sign = 1;
+        for (int i = 0; i < n; i++) {
+            double[][] cofactor = getCofactor(matrix, 0, i);
+            det += sign * matrix[0][i] * determinant(cofactor);
+            sign = -sign;
+        }
+        return det;
+    }
+
+    // Function to find the adjoint of a matrix
+    public static double[][] adjoint(double[][] matrix) {
+        int n = matrix.length;
+        double[][] adjoint = new double[n][n];
+        int sign;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                sign = ((i + j) % 2 == 0) ? 1 : -1;
+                double[][] cofactor = getCofactor(matrix, i, j);
+                adjoint[j][i] = sign * determinant(cofactor);
+            }
+        }
+        return adjoint;
+    }
+   
+
+    public static int calculateNumParityRows(int numRows) {
+        if (numRows <= 4) {
+            return 2;
+        } else if (numRows <= 8) {
+            return 4;
+        } else if (numRows <= 12) {
+            return 6;
+        }
+            else if (numRows <= 16) {
+                return 8;
+        }
+            else if (numRows <= 20) {
+                return 10;
+        } 
+            else {
+            return 12; // Assuming pattern continues with increments of 4
+        }
+    }
+    public static void copyRows(double[][] source, double[][] dest, int start, int end) {
+        // Ensure that end index does not exceed the size of the matrix
+        end = Math.min(end, source.length);
+        for (int i = start; i < end; i++) {
+            dest[i - start] = source[i];
+        }
+    }
+
+    public static int[] genDivideMatrix(int n) {
+        switch (n) {
+            case 4: return new int[]{1, 1, 1, 1, 1, 1};
+            case 5: return new int[]{1, 1, 1, 2, 2, 2};
+            case 6: return new int[]{1, 1, 2, 2, 2, 2};
+            case 7: return new int[]{1, 2, 2, 2, 2, 2};
+            case 8: return new int[]{2, 2, 2, 2, 2, 2};
+            case 9: return new int[]{2, 2, 2, 3, 3, 3};
+            case 10: return new int[]{2, 2, 3, 3, 3, 3};
+            case 11: return new int[]{2, 3, 3, 3, 3, 3};
+            case 12: return new int[]{3, 3, 3, 3, 3, 3};
+        }
+        return null;
+    }
+
+    public static String matrixToString(double[][] matrix) {
+        StringBuilder sb = new StringBuilder();
+        for (double[] row : matrix) {
+            for (double value : row) {
+                sb.append((char) value);
+            }
+        }
+        return sb.toString();
+    } 
+    public static void writeFile(String fileName, String content) {
+        try (FileWriter writer = new FileWriter(fileName)) {
+            writer.write(content);
+            System.out.println("String has been written to " + fileName);
+        } catch (IOException e) {
+            System.out.println("An error occurred while writing to the file.");
+            e.printStackTrace();
+        }
+    }
+
+    public static String readFile(String fileName) {
+        StringBuilder content = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                content.append(line);
+            }
+        } catch (IOException e) {
+            System.out.println("An error occurred while reading the file: " + fileName);
+            e.printStackTrace();
+        }
+        return content.toString();
+    }
+
+    public static void stringToMatrix(String str,List<Integer> l) {
+        
+        for (int i = 0; i < str.length(); i++) {
+            int value = str.charAt(i);
+            l.add(value);
+        }
+        
+    }
+  
+}
+
